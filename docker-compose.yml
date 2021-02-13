@@ -12,8 +12,6 @@ services:
       POSTGRES_PASSWORD: yourpasswd #在此填写posgres的数据库密码
     ports:
       - "5432:5432"
-    networks:
-      - cicd
 
   pgadmin:
     image: dpage/pgadmin4:latest
@@ -24,9 +22,7 @@ services:
     ports:
       - "5050:80"
     depends_on:
-      - postgresql
-    networks:
-      - cicd
+      - postgres
 
   gogs-server:
     container_name: gogs-server
@@ -39,9 +35,7 @@ services:
       - TZ=Asia/Shanghai
     restart: always
     depends_on:
-      - postgresql
-    networks:
-      - cicd
+      - postgres
 
   drone-server:
     image: drone/drone:1.10.1
@@ -61,7 +55,7 @@ services:
       - DRONE_GIT_ALWAYS_AUTH=false
       - DRONE_GOGS=true
       - DRONE_GOGS_SKIP_VERIFY=true
-      - DRONE_GOGS_SERVER=http://gogs-server
+      - DRONE_GOGS_SERVER=http://gogs-server:3000
       - DRONE_PROVIDER=gogs
       - DRONE_SERVER_PROTO=http
       - DRONE_RPC_SECRET=WltHV44GhapIpWVI
@@ -71,9 +65,7 @@ services:
       - TZ=Asia/Shanghai
     restart: always
     depends_on:
-      - postgresql
-    networks:
-      - cicd
+      - postgres
 
   drone-agent:
     image: drone/agent:1.6.2
@@ -82,7 +74,7 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - DRONE_RPC_SERVER=http://drone-server
-      - DRONE_RPC_SECRET=2FW9+vnuF3XVy9EXKtL7VzvP1m8v4PHw
+      - DRONE_RPC_SECRET=WltHV44GhapIpWVI
       - DRONE_RUNNER_CAPACITY=2
       - DRONE_LOGS_TRACE=false
       - DRONE_LOGS_DEBUG=false
@@ -91,10 +83,3 @@ services:
     restart: always
     depends_on:
       - drone-server
-    networks:
-      - cicd
-
-networks:
-   default:
-    external:
-      name: cicd
