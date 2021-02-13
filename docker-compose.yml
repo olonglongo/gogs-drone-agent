@@ -1,0 +1,100 @@
+version: "3"
+services:
+  postgres:
+    image: postgres:10.16
+    container_name: postgresql
+    volumes:
+      - ./data/pgdata:/var/lib/postgresql/data
+      - ./init-user-db.sh:/docker-entrypoint-initdb.d/init-user-db.sh
+    environment:
+      POSTGRES_USER: yourusername #在此填写postgres的用户名
+      POSTGRES_DB: postgres #在此填写postgres的数据库名，默认是postgres
+      POSTGRES_PASSWORD: yourpasswd #在此填写posgres的数据库密码
+    ports:
+      - "5432:5432"
+    networks:
+      - cicd
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: postgresql-admin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: youremail@yourdomain #在此填写pgAdmin登录账户邮箱
+      PGADMIN_DEFAULT_PASSWORD: yourpasswd #在此填写pgAdmin密码
+    ports:
+      - "5050:80"
+    depends_on:
+      - postgresql
+    networks:
+      - cicd
+
+  gogs-server:
+    container_name: gogs-server
+    image: gogs/gogs:0.12.3
+    ports:
+      - 3000:3000
+    volumes:
+      - ./data/gogs:/data
+    environment:
+      - TZ=Asia/Shanghai
+    restart: always
+    depends_on:
+      - postgresql
+    networks:
+      - cicd
+
+  drone-server:
+    image: drone/drone:1.10.1
+    container_name: drone-server
+    ports:
+      - 8000:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./data/drone:/var/lib/drone
+    environment:
+      - DRONE_OPEN=true
+      - DRONE_LOGS_TRACE=false
+      - DRONE_LOGS_DEBUG=false
+      - DRONE_SERVER_HOST=drone-server
+      - DRONE_DATADOG_ENABLED=false
+      - DRONE_AGENTS_ENABLED=true
+      - DRONE_GIT_ALWAYS_AUTH=false
+      - DRONE_GOGS=true
+      - DRONE_GOGS_SKIP_VERIFY=true
+      - DRONE_GOGS_SERVER=http://gogs-server
+      - DRONE_PROVIDER=gogs
+      - DRONE_SERVER_PROTO=http
+      - DRONE_RPC_SECRET=WltHV44GhapIpWVI
+      - DRONE_USER_CREATE=username:olonglongo,admin:true
+      - DRONE_DATABASE_DRIVER=postgres
+      - DRONE_DATABASE_DATASOURCE=postgres://drone:drone@postgresql:5432/drone?sslmode=disable
+      - TZ=Asia/Shanghai
+    restart: always
+    depends_on:
+      - postgresql
+    networks:
+      - cicd
+
+  drone-agent:
+    image: drone/agent:1.6.2
+    container_name: drone-agent
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - DRONE_RPC_SERVER=http://drone-server
+      - DRONE_RPC_SECRET=2FW9+vnuF3XVy9EXKtL7VzvP1m8v4PHw
+      - DRONE_RUNNER_CAPACITY=2
+      - DRONE_LOGS_TRACE=false
+      - DRONE_LOGS_DEBUG=false
+      - TZ=Asia/Shanghai
+      - DRONE_SERVER_PROTO=http
+    restart: always
+    depends_on:
+      - drone-server
+    networks:
+      - cicd
+
+networks:
+   default:
+    external:
+      name: cicd
